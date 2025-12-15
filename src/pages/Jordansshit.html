@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Interactive Bird Observation Visualization</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<style>
+  :root{
+    --bg-deep: #0f1113;
+    --panel: #141618;
+    --muted: #1a1d21;
+    --text: #e6eef2;
+    --muted-text: #a5a7aa;
+    --accent-cyan: #5ff6f1;
+    --accent-yellow: #f4b73b;
+    --card-shadow: rgba(0,0,0,0.6);
+  }
+
+  *{box-sizing:border-box}
+  html,body{
+    height:100%;margin:0;
+    font-family:Inter, "Segoe UI", Roboto, Arial, sans-serif;
+    background:var(--bg-deep);
+    color:var(--text);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .wrap{
+    display:flex;
+    gap:28px;
+    max-width:1400px;
+    margin:28px auto;
+    padding:0 18px;
+    align-items:flex-start;
+  }
+
+  /* Sidebar */
+  .sidebar{
+    width:320px;
+    background:linear-gradient(180deg,var(--muted), #121316);
+    border-radius:10px;
+    padding:22px;
+    box-shadow: 0 6px 20px var(--card-shadow);
+    border:1px solid rgba(255,255,255,0.03);
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+    min-height:1300px;
+  }
+  .status-title{ font-size:12px; text-transform:uppercase; color:var(--muted-text); margin:6px 0; }
+  .metric { background:#0f1114; border-radius:10px; padding:16px; border-left:4px solid rgba(255,255,255,0.02); box-shadow:0 4px 12px rgba(0,0,0,0.6); }
+  .metric .big{ font-size:28px; font-weight:800; color:var(--text); }
+  .sidebar .spacer { flex:1; }
+  .sys{ font-size:12px; color:var(--muted-text); border-top:1px solid rgba(255,255,255,0.02); padding-top:12px; }
+
+  /* Main */
+  .main{ flex:1; min-width:600px; display:flex; flex-direction:column; gap:20px; }
+
+  .header-card{
+    background: linear-gradient(180deg,#0f1317,#101214);
+    padding:20px; border-radius:10px;
+    display:flex; align-items:center; justify-content:space-between;
+    border:1px solid rgba(255,255,255,0.03); box-shadow:0 6px 20px rgba(0,0,0,0.6);
+  }
+
+  .card{
+    background: linear-gradient(180deg,var(--panel), #0e1012 );
+    border-radius:10px; padding:18px; border:1px solid rgba(255,255,255,0.03);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+  }
+
+  .section-title{ font-weight:700; font-size:16px; margin-bottom:12px; }
+
+  /* Map hero - removed darkening filter */
+  .map-hero{ position:relative; height:520px; border-radius:8px; overflow:hidden; background:#0b0c0d; display:flex; align-items:center; justify-content:center; }
+  .map-hero img{ width:100%; height:100%; object-fit:cover; display:block; opacity:1; transition:opacity .35s ease; }
+
+  .layers{
+    position:absolute; right:22px; top:22px;
+    background:rgba(18,20,22,0.75); border-radius:8px; padding:12px; min-width:160px;
+    border:1px solid rgba(255,255,255,0.04);
+  }
+  .layers h4{ margin:0 0 6px 0; font-size:12px; color:var(--muted-text); }
+  .layers label{ display:block; color:var(--muted-text); font-size:13px; margin:6px 0; cursor:pointer; }
+  .layers input{ margin-right:8px; accent-color: var(--accent-cyan); }
+
+  /* Table */
+  .data-table{ width:100%; border-collapse:collapse; font-size:14px; overflow:hidden; border-radius:6px; }
+  .data-table thead th{ padding:12px 14px; background: linear-gradient(180deg,#0c1113,#0a0d0f); text-transform:uppercase; letter-spacing:0.06em; border-bottom:1px solid rgba(255,255,255,0.03); color:var(--text); }
+  .data-table tbody td{ padding:12px 14px; color:var(--muted-text); border-bottom:1px solid rgba(255,255,255,0.02); }
+  .data-table tbody tr:hover td{ background: linear-gradient(90deg, rgba(95,246,241,0.03), transparent); color:var(--text); }
+  .species-name{ color:var(--accent-cyan); font-weight:700; cursor:pointer; }
+  .highlight{ background: linear-gradient(90deg, rgba(95,246,241,0.08), rgba(95,246,241,0.02)) !important; color:var(--text) !important; }
+
+  .analysis-box{ background: linear-gradient(180deg,#0f1213,#0c0d0e); border-left:4px solid var(--accent-yellow); padding:16px; border-radius:8px; color:var(--muted-text); }
+  footer{ color:var(--muted-text); text-align:center; padding:12px 0; font-size:13px; }
+
+  /* Responsive */
+  @media (max-width:1100px){ .wrap{ padding:0 12px; gap:18px; } .sidebar{ width:280px; } .map-hero{ height:420px; } }
+  @media (max-width:860px){ .wrap{ flex-direction:column; align-items:stretch; max-width:940px; margin:18px auto; } .sidebar{ width:100%; order:2; min-height:initial } .main{ order:1 } .map-hero{ height:320px } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="status-title">Situation Report</div>
+
+    <div class="metric">
+      <div style="font-size:12px;color:var(--muted-text)">Total Detections</div>
+      <div class="big">450</div>
+      <small>Confirmed Cases</small>
+    </div>
+
+    <div class="metric">
+      <div style="font-size:12px;color:var(--muted-text)">Unique Species</div>
+      <div class="big">7</div>
+      <small>Affected Taxa</small>
+    </div>
+
+    <div class="metric">
+      <div style="font-size:12px;color:var(--muted-text)">States / Regions</div>
+      <div class="big">100</div>
+      <small>Geographic Spread</small>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="sys">
+      <strong style="color:var(--accent-cyan)">Mode:</strong> Sample Data<br>
+      450 records mapped
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <div class="header-card">
+      <div class="header-left">
+        <h1>Wild Bird Surveillance: Fighting Bird Flu</h1>
+        <p>The visualization below highlights the top species and the number of reported cases, while the table provides additional details.
+Click any bird’s name in the table to reveal a fun fact about that species.</p>
+      </div>
+    </div>
+
+    <!-- Hero -->
+    <div class="card">
+      <div class="section-title">Common Birds Infected with Bird Flu A Strains</div>
+
+      <div class="map-hero">
+        <!-- initial src uses the real uploaded file path -->
+        <img id="heroImage" src="https://ljwright.webdev.iyaserver.com/acad274/Group%20Project/birds" alt="visual"/>
+
+        <div class="layers" aria-label="Image layer controls">
+          <h4>LAYERS</h4>
+          <label><input type="radio" name="maplayer" id="mapVisualBtn" checked> Visual</label>
+          <label><input type="radio" name="maplayer" id="mapChartBtn"> Chart</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card">
+      <div class="section-title">Bird Observation Data</div>
+
+      <table class="data-table">
+        <thead>
+          <tr><th>Species</th><th>Observations</th><th>Category</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="species-name">Mallard</td><td>2835</td><td>Wild</td></tr>
+          <tr><td class="species-name">Canada Goose</td><td>1297</td><td>Wild</td></tr>
+          <tr><td class="species-name">Green-winged Teal</td><td>1244</td><td>Wild</td></tr>
+          <tr><td class="species-name">Snow Goose</td><td>912</td><td>Wild</td></tr>
+          <tr><td class="species-name">Blue-winged Teal</td><td>877</td><td>Wild</td></tr>
+          <tr><td class="species-name">Bald Eagle</td><td>803</td><td>Wild</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Analysis -->
+    <div class="analysis-box">
+      <b>Key Findings</b>
+      <ul style="margin:8px 0 0 18px; color:var(--muted-text)">
+        <li><strong style="color:var(--text)">Species Dominance:</strong> Mallards dominate observations (2,835).</li>
+        <li><strong style="color:var(--text)">Distribution:</strong> Top-heavy distribution; several species drive counts.</li>
+        <li><strong style="color:var(--text)">Ecological:</strong> Focus management on high-prevalence taxa.</li>
+      </ul>
+    </div>
+
+    <footer>Bird Observation Dataset — Interactive Analysis</footer>
+
+  </main>
+</div>
+
+<script>
+/* ================= SPECIES FACTS ================= */
+const speciesDescriptions = {
+  "Mallard": "Mallards are widespread and highly adaptable.",
+  "Canada Goose": "Migratory geese often seen in V-shaped flocks.",
+  "Green-winged Teal": "Small dabbling duck found in northern wetlands.",
+  "Snow Goose": "Arctic breeder migrating thousands of miles yearly.",
+  "Blue-winged Teal": "Long-distance migrant reaching South America.",
+  "Bald Eagle": "Iconic raptor nesting near lakes and rivers."
+};
+
+$(".species-name").on("click", function(){
+  const species = $(this).text();
+  const desc = speciesDescriptions[species] || "No description available.";
+
+  $(".species-name").closest("tr").removeClass("highlight");
+  $(this).closest("tr").addClass("highlight");
+
+  const toast = $('<div/>', {
+    text: species + " — " + desc,
+    css:{
+      position:'fixed',
+      left:'50%',
+      transform:'translateX(-50%)',
+      bottom:'28px',
+      background:'#071011',
+      color:'var(--muted-text)',
+      padding:'12px 18px',
+      borderRadius:'8px',
+      border:'1px solid rgba(95,246,241,0.07)',
+      boxShadow:'0 6px 18px rgba(0,0,0,0.6)',
+      zIndex:9999,
+      maxWidth:'86%',
+      fontSize:'13px'
+    }
+  });
+
+  $('body').append(toast);
+  setTimeout(()=>toast.fadeOut(300, ()=>toast.remove()), 3800);
+});
+
+/* ================= IMAGE SWITCHING (robust + fade) ================= */
+
+// Use the exact paths; visual uses your uploaded file path.
+const visualImage = "https://ljwright.webdev.iyaserver.com/acad274/Group%20Project/birds";
+const chartImage  = "https://ljwright.webdev.iyaserver.com/acad274/Group%20Project/chart.jpg"; // replace with your actual chart file (chart.jpg, chart.png, etc.)
+
+const heroImg = document.getElementById("heroImage");
+
+function switchHeroImage(mode){
+  const targetSrc = (mode === "visual") ? visualImage : chartImage;
+
+  // If the current src is already the target, do nothing.
+  if (heroImg.getAttribute("src") === targetSrc) return;
+
+  // fade out
+  heroImg.style.opacity = 0;
+
+  // preload new image, then swap and fade in
+  const pre = new Image();
+  pre.onload = function(){
+    heroImg.src = pre.src;
+    // small timeout to ensure the browser registered src change before fade-in
+    setTimeout(()=> heroImg.style.opacity = 1, 40);
+  };
+  pre.onerror = function(){
+    // handle failure gracefully: show a simple placeholder dark panel
+    heroImg.style.opacity = 1;
+    heroImg.src = ""; // clear
+    console.warn("Failed to load image:", targetSrc);
+  };
+  pre.src = targetSrc;
+}
+
+/* Only the bottom-right layer controls are active */
+$("#mapVisualBtn").on("change", function(){
+  if(this.checked) switchHeroImage("visual");
+});
+$("#mapChartBtn").on("change", function(){
+  if(this.checked) switchHeroImage("chart");
+});
+</script>
+
+</body>
+</html>

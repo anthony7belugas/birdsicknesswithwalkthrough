@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HPAI Surveillance | Live Analytics Hub</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-deep: #0b0c10;
+            --bg-glass: rgba(31, 40, 51, 0.85);
+            --border: rgba(102, 252, 241, 0.15);
+            --text-main: #e6edf3;
+            --text-muted: #8b949e;
+            --cyan: #66fcf1;
+            --cyan-dim: #45a29e;
+            --danger: #ff4d6d;
+            --warning: #ffb703;
+            --purple: #9d4edd;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background-image: radial-gradient(circle at 10% 20%, rgba(11, 12, 16, 0.9) 0%, #000 90%);
+        }
+
+        /* Utility Classes */
+        .glass {
+            background: var(--bg-glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+        }
+
+        /* Header */
+        header {
+            height: 60px;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+            border-bottom: 1px solid var(--border);
+            background: rgba(11, 12, 16, 0.95);
+            flex-shrink: 0;
+        }
+
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .brand-logo { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 1.1rem; color: var(--cyan); }
+        .brand-meta { font-size: 0.7rem; background: rgba(255, 77, 109, 0.15); color: var(--danger); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(255, 77, 109, 0.3); }
+
+        .nav-tabs { display: flex; gap: 10px; background: rgba(0,0,0,0.3); padding: 4px; border-radius: 6px; }
+        .nav-btn {
+            background: none; border: none; color: var(--text-muted); font-weight: 600; cursor: pointer;
+            padding: 6px 14px; border-radius: 4px; transition: all 0.2s ease; font-size: 0.8rem;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .nav-btn:hover { color: var(--text-main); }
+        .nav-btn.active { background: var(--cyan-dim); color: #fff; box-shadow: 0 0 10px rgba(102, 252, 241, 0.2); }
+
+        /* Layout */
+        .main-container { display: flex; height: calc(100vh - 60px); width: 100%; overflow: hidden; }
+
+        .sidebar {
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            z-index: 20;
+            padding: 20px;
+            gap: 15px;
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            background: rgba(11, 12, 16, 0.95);
+            flex-shrink: 0;
+        }
+
+        .content-area { flex: 1; position: relative; background-color: #000; overflow: hidden; }
+
+        /* KPIs */
+        .kpi-card {
+            border-radius: 6px; padding: 15px; position: relative; overflow: hidden;
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);
+        }
+        .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%; background: var(--cyan); }
+        .kpi-card.danger::before { background: var(--danger); }
+        .kpi-card.warning::before { background: var(--warning); }
+        
+        .kpi-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 5px; }
+        .kpi-val { font-family: 'JetBrains Mono', monospace; font-size: 1.6rem; font-weight: 700; color: #fff; }
+        .kpi-sub { font-size: 0.75rem; margin-top: 5px; opacity: 0.7; }
+
+        /* Views */
+        .view-section {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            visibility: hidden; opacity: 0; z-index: 0;
+            transition: opacity 0.3s ease;
+        }
+        .view-section.active { visibility: visible; opacity: 1; z-index: 10; }
+
+        /* Map */
+        #map-wrapper { width: 100%; height: 100%; position: relative; }
+        #mainMap { height: 100%; width: 100%; background: #0b0c10; }
+        
+        .map-overlay-controls {
+            position: absolute; top: 20px; right: 20px; z-index: 1000;
+            padding: 15px; border-radius: 8px; width: 200px;
+        }
+        .toggle-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; cursor: pointer; color: var(--text-muted); font-size: 0.8rem; }
+        .toggle-row:hover { color: #fff; }
+
+        /* Analytics Grid */
+        .analytics-grid {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 20px;
+            overflow-y: auto;
+            height: 100%;
+            padding-bottom: 50px;
+        }
+
+        .chart-card {
+            border-radius: 8px; padding: 20px; display: flex; flex-direction: column;
+            background: var(--bg-glass); border: 1px solid var(--border);
+            min-height: 350px;
+        }
+        
+        .chart-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;
+        }
+        .chart-title { font-size: 0.95rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px; }
+        .chart-container { flex: 1; position: relative; width: 100%; min-height: 0; }
+
+        /* Grid System */
+        .col-12 { grid-column: span 12; }
+        .col-6 { grid-column: span 6; }
+        .col-4 { grid-column: span 4; }
+
+        /* File Upload */
+        .upload-area {
+            border: 1px dashed var(--cyan-dim); background: rgba(69, 162, 158, 0.1);
+            padding: 15px; border-radius: 6px; text-align: center; margin-bottom: 15px;
+        }
+        .btn-upload {
+            background: var(--cyan-dim); color: #fff; border: none; padding: 8px 16px;
+            border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: 600; margin-top: 8px;
+            width: 100%; transition: 0.2s;
+        }
+        .btn-upload:hover { background: var(--cyan); }
+
+        /* Popups */
+        .bird-popup h3 { color: var(--cyan); border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 5px; }
+        .popup-row { display: flex; justify-content: space-between; font-size: 0.8rem; margin: 4px 0; color: #ccc; }
+        .leaflet-popup-content-wrapper { background: rgba(10,10,10,0.95); backdrop-filter: blur(5px); border: 1px solid var(--cyan); color: #fff; }
+        .leaflet-popup-tip { background: rgba(10,10,10,0.95); }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--cyan-dim); }
+
+        @media (max-width: 1200px) { .col-4, .col-6 { grid-column: span 12; } .sidebar { width: 260px; } }
+        @media (max-width: 768px) { .sidebar { display: none; } .main-container { flex-direction: column; } }
+    </style>
+</head>
+<body>
+
+<header class="glass">
+    <div class="brand">
+        <i class="fas fa-biohazard fa-lg" style="color: var(--danger);"></i>
+        <div>
+            <div class="brand-logo">HPAI<span style="color:#fff;">_SURVEILLANCE</span></div>
+            <div style="font-size: 0.65rem; color: var(--text-muted);">GLOBAL ANALYTICS PLATFORM</div>
+        </div>
+        <div class="brand-meta">H5N1</div>
+    </div>
+    <div class="nav-tabs">
+        <button class="nav-btn active" onclick="switchView('map')" id="btn-map">
+            <i class="fas fa-globe-americas"></i> LIVE MAP
+        </button>
+        <button class="nav-btn" onclick="switchView('analytics')" id="btn-analytics">
+            <i class="fas fa-chart-pie"></i> ANALYTICS
+        </button>
+    </div>
+</header>
+
+<div class="main-container">
+    <div class="sidebar">
+        <div class="upload-area">
+            <div style="font-size: 0.8rem; color: var(--cyan); margin-bottom: 5px;"><i class="fas fa-cloud-upload-alt"></i> Import Data</div>
+            <div style="font-size: 0.7rem; color: #aaa; margin-bottom: 8px;">Supports USDA .csv format</div>
+            <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
+            <button class="btn-upload" onclick="document.getElementById('csvFileInput').click()">Select File</button>
+        </div>
+
+        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); letter-spacing: 1px; margin-top: 10px;">SITUATION REPORT</div>
+        
+        <div class="kpi-card danger">
+            <div class="kpi-label">Total Detections</div>
+            <div class="kpi-val" id="kpi-total">0</div>
+            <div class="kpi-sub">Confirmed Cases</div>
+        </div>
+
+        <div class="kpi-card warning">
+            <div class="kpi-label">Unique Species</div>
+            <div class="kpi-val" id="kpi-species">0</div>
+            <div class="kpi-sub">Affected Taxa</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-label">States / Regions</div>
+            <div class="kpi-val" id="kpi-states">0</div>
+            <div class="kpi-sub">Geographic Spread</div>
+        </div>
+
+        <div style="margin-top: auto; padding: 15px; border-top: 1px solid var(--border); font-size: 0.7rem; color: #666;">
+            <i class="fas fa-info-circle"></i> <strong>SYSTEM STATUS</strong><br>
+            Mode: <span id="status-mode" style="color: var(--cyan);">Sample Data</span><br>
+            <span id="record-count">Loading...</span>
+        </div>
+    </div>
+
+    <div class="content-area">
+        <div id="view-map" class="view-section active">
+            <div id="map-wrapper">
+                <div id="mainMap"></div>
+                <div class="map-overlay-controls glass">
+                    <div style="font-size:0.7rem; font-weight:700; margin-bottom:10px; color:var(--cyan);">LAYERS</div>
+                    <label class="toggle-row">
+                        <input type="radio" name="maplayer" value="clusters" checked onclick="switchLayer('clusters')"> 
+                        Cluster Markers
+                    </label>
+                    <label class="toggle-row">
+                        <input type="radio" name="maplayer" value="heat" onclick="switchLayer('heat')"> 
+                        Heatmap Density
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-analytics" class="view-section">
+            <div class="analytics-grid">
+                
+                <div class="chart-card col-12">
+                    <div class="chart-header">
+                        <div class="chart-title"><i class="fas fa-wave-square"></i> Temporal Trends</div>
+                    </div>
+                    <div class="chart-container"><canvas id="temporalChart"></canvas></div>
+                </div>
+
+                <div class="chart-card col-6">
+                    <div class="chart-header">
+                        <div class="chart-title"><i class="fas fa-map-marker-alt"></i> Geographic Hotspots</div>
+                    </div>
+                    <div class="chart-container"><canvas id="stateChart"></canvas></div>
+                </div>
+
+                <div class="chart-card col-6">
+                    <div class="chart-header">
+                        <div class="chart-title"><i class="fas fa-crow"></i> Species Susceptibility</div>
+                    </div>
+                    <div class="chart-container"><canvas id="speciesChart"></canvas></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- CONFIGURATION & STATE ---
+    Chart.defaults.color = '#8b949e';
+    Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    
+    // Central coordinates for states/regions (Expanded List)
+    const LOCATIONS = {
+        'AL': [32.8, -86.8], 'AK': [61.3, -152.4], 'AZ': [33.7, -111.4], 'AR': [34.9, -92.3],
+        'CA': [36.1, -119.6], 'CO': [39.0, -105.3], 'CT': [41.6, -72.7], 'DE': [39.3, -75.5],
+        'FL': [27.7, -81.6], 'GA': [33.0, -83.6], 'HI': [21.0, -157.5], 'ID': [44.2, -114.4],
+        'IL': [40.3, -88.9], 'IN': [39.8, -86.2], 'IA': [42.0, -93.2], 'KS': [38.5, -96.7],
+        'KY': [37.6, -84.6], 'LA': [31.1, -91.8], 'ME': [44.6, -69.3], 'MD': [39.0, -76.8],
+        'MA': [42.2, -71.5], 'MI': [43.3, -84.5], 'MN': [45.6, -93.9], 'MS': [32.7, -89.6],
+        'MO': [38.4, -92.2], 'MT': [46.9, -110.4], 'NE': [41.1, -98.2], 'NV': [38.3, -117.0],
+        'NH': [43.4, -71.5], 'NJ': [40.2, -74.5], 'NM': [34.8, -106.2], 'NY': [42.1, -74.9],
+        'NC': [35.6, -79.8], 'ND': [47.5, -99.7], 'OH': [40.3, -82.7], 'OK': [35.5, -96.9],
+        'OR': [44.5, -122.0], 'PA': [40.5, -77.2], 'RI': [41.6, -71.5], 'SC': [33.8, -80.9],
+        'SD': [44.2, -99.4], 'TN': [35.7, -86.6], 'TX': [31.0, -97.5], 'UT': [40.1, -111.8],
+        'VT': [44.0, -72.7], 'VA': [37.7, -78.1], 'WA': [47.4, -121.4], 'WV': [38.4, -80.9],
+        'WI': [44.2, -89.6], 'WY': [42.7, -107.3],
+        // Full names support
+        'Alabama': [32.8, -86.8], 'Alaska': [61.3, -152.4], 'Arizona': [33.7, -111.4], 'Arkansas': [34.9, -92.3],
+        'California': [36.1, -119.6], 'Colorado': [39.0, -105.3], 'Connecticut': [41.6, -72.7], 'Delaware': [39.3, -75.5],
+        'Florida': [27.7, -81.6], 'Georgia': [33.0, -83.6], 'Hawaii': [21.0, -157.5], 'Idaho': [44.2, -114.4],
+        'Illinois': [40.3, -88.9], 'Indiana': [39.8, -86.2], 'Iowa': [42.0, -93.2], 'Kansas': [38.5, -96.7],
+        'Kentucky': [37.6, -84.6], 'Louisiana': [31.1, -91.8], 'Maine': [44.6, -69.3], 'Maryland': [39.0, -76.8],
+        'Massachusetts': [42.2, -71.5], 'Michigan': [43.3, -84.5], 'Minnesota': [45.6, -93.9], 'Mississippi': [32.7, -89.6],
+        'Missouri': [38.4, -92.2], 'Montana': [46.9, -110.4], 'Nebraska': [41.1, -98.2], 'Nevada': [38.3, -117.0],
+        'New Hampshire': [43.4, -71.5], 'New Jersey': [40.2, -74.5], 'New Mexico': [34.8, -106.2], 'New York': [42.1, -74.9],
+        'North Carolina': [35.6, -79.8], 'North Dakota': [47.5, -99.7], 'Ohio': [40.3, -82.7], 'Oklahoma': [35.5, -96.9],
+        'Oregon': [44.5, -122.0], 'Pennsylvania': [40.5, -77.2], 'Rhode Island': [41.6, -71.5], 'South Carolina': [33.8, -80.9],
+        'South Dakota': [44.2, -99.4], 'Tennessee': [35.7, -86.6], 'Texas': [31.0, -97.5], 'Utah': [40.1, -111.8],
+        'Vermont': [44.0, -72.7], 'Virginia': [37.7, -78.1], 'Washington': [47.4, -121.4], 'West Virginia': [38.4, -80.9],
+        'Wisconsin': [44.2, -89.6], 'Wyoming': [42.7, -107.3]
+    };
+
+    let globalData = [];
+    let charts = {};
+    let heatLayer = null;
+
+    // --- MAP INITIALIZATION ---
+    const map = L.map('mainMap', {
+        center: [39.8283, -98.5795],
+        zoom: 4,
+        attributionControl: false,
+        zoomControl: false
+    });
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+
+    const markersLayer = L.markerClusterGroup({
+        showCoverageOnHover: false,
+        maxClusterRadius: 40,
+        iconCreateFunction: function(cluster) {
+            const c = cluster.getChildCount();
+            let size = c < 10 ? 30 : (c < 50 ? 40 : 50);
+            return L.divIcon({ 
+                html: `<div style="background:rgba(102, 252, 241, 0.9); color:#000; border-radius:50%; width:${size}px; height:${size}px; display:flex; align-items:center; justify-content:center; font-weight:800; border:2px solid #fff; box-shadow: 0 0 15px rgba(102, 252, 241, 0.4); font-family:'JetBrains Mono';">${c}</div>`, 
+                className: 'marker-cluster', iconSize: L.point(size, size) 
+            });
+        }
+    });
+    map.addLayer(markersLayer);
+
+    // --- DATA HANDLING ---
+    
+    // Fuzzy search for column names to handle different CSV formats
+    function getField(row, possibilities) {
+        const keys = Object.keys(row);
+        for (let p of possibilities) {
+            const match = keys.find(k => k.toLowerCase().includes(p.toLowerCase()));
+            if (match) return row[match];
+        }
+        return null;
+    }
+
+    document.getElementById('csvFileInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (res) => {
+                document.getElementById('status-mode').innerText = "User Upload";
+                processData(res.data);
+            },
+            error: (err) => alert("CSV Error: " + err.message)
+        });
+    });
+
+    function processData(data) {
+        globalData = data;
+        markersLayer.clearLayers();
+        if (heatLayer) map.removeLayer(heatLayer);
+        
+        const heatPoints = [];
+        let validPoints = 0;
+        
+        // Stats trackers
+        const states = new Set();
+        const species = new Set();
+        
+        data.forEach(row => {
+            const state = getField(row, ['state'])?.trim();
+            const spec = getField(row, ['common name', 'species'])?.trim();
+            const date = getField(row, ['date', 'collection'])?.trim();
+            const county = getField(row, ['county'])?.trim();
+            
+            if (state && LOCATIONS[state]) {
+                validPoints++;
+                states.add(state);
+                if(spec) species.add(spec);
+
+                // Add slight jitter to prevent exact overlap
+                const center = LOCATIONS[state];
+                const lat = center[0] + (Math.random() - 0.5) * 2;
+                const lng = center[1] + (Math.random() - 0.5) * 3;
+                
+                // Marker
+                const marker = L.marker([lat, lng], {
+                    icon: L.divIcon({
+                        className: 'pin',
+                        html: '<div style="width:8px; height:8px; background:#ff4d6d; border-radius:50%; border:1px solid white; box-shadow:0 0 4px #ff4d6d"></div>'
+                    })
+                });
+                
+                marker.bindPopup(`
+                    <div class="bird-popup">
+                        <h3>${spec || 'Unknown Species'}</h3>
+                        <div class="popup-row"><span>State:</span> <b>${state}</b></div>
+                        <div class="popup-row"><span>County:</span> <b>${county || 'N/A'}</b></div>
+                        <div class="popup-row"><span>Date:</span> <b>${date || 'N/A'}</b></div>
+                    </div>
+                `);
+                
+                markersLayer.addLayer(marker);
+                heatPoints.push([lat, lng, 0.5]);
+            }
+        });
+
+        // Heatmap layer (hidden by default)
+        heatLayer = L.heatLayer(heatPoints, { radius: 30, blur: 20, maxZoom: 8 });
+
+        // Update KPIs
+        document.getElementById('kpi-total').innerText = validPoints.toLocaleString();
+        document.getElementById('kpi-species').innerText = species.size.toLocaleString();
+        document.getElementById('kpi-states').innerText = states.size;
+        document.getElementById('record-count').innerText = `${validPoints} records mapped`;
+
+        updateCharts(data);
+    }
+
+    // --- CHARTING ---
+    function updateCharts(data) {
+        // Prepare Data
+        const dates = {};
+        const stateCounts = {};
+        const specCounts = {};
+
+        data.forEach(row => {
+            const d = getField(row, ['date', 'collection']);
+            if (d) {
+                try {
+                    const dateObj = new Date(d);
+                    if(!isNaN(dateObj)) {
+                        const k = dateObj.toISOString().slice(0, 7); // YYYY-MM
+                        dates[k] = (dates[k] || 0) + 1;
+                    }
+                } catch(e) {}
+            }
+
+            const s = getField(row, ['state']);
+            if(s) stateCounts[s] = (stateCounts[s] || 0) + 1;
+
+            const sp = getField(row, ['common name', 'species']);
+            if(sp) specCounts[sp] = (specCounts[sp] || 0) + 1;
+        });
+
+        // Destroy old charts
+        if (charts.temporal) charts.temporal.destroy();
+        if (charts.state) charts.state.destroy();
+        if (charts.species) charts.species.destroy();
+
+        // 1. Temporal Line Chart
+        const sortedDates = Object.keys(dates).sort();
+        charts.temporal = new Chart(document.getElementById('temporalChart'), {
+            type: 'line',
+            data: {
+                labels: sortedDates,
+                datasets: [{
+                    label: 'Detections',
+                    data: sortedDates.map(k => dates[k]),
+                    borderColor: '#66fcf1',
+                    backgroundColor: 'rgba(102, 252, 241, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { 
+                    x: { grid: { display: false }, ticks: { color: '#888', font: {size: 10} } },
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#888' } }
+                }
+            }
+        });
+
+        // 2. State Bar Chart
+        const topStates = Object.entries(stateCounts).sort((a,b) => b[1] - a[1]).slice(0, 10);
+        charts.state = new Chart(document.getElementById('stateChart'), {
+            type: 'bar',
+            data: {
+                labels: topStates.map(x => x[0]),
+                datasets: [{
+                    label: 'Cases',
+                    data: topStates.map(x => x[1]),
+                    backgroundColor: '#ff4d6d',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { 
+                    x: { grid: { color: 'rgba(255,255,255,0.05)' } },
+                    y: { grid: { display: false }, ticks: { color: '#ccc' } }
+                }
+            }
+        });
+
+        // 3. Species Bar Chart
+        const topSpecies = Object.entries(specCounts).sort((a,b) => b[1] - a[1]).slice(0, 10);
+        charts.species = new Chart(document.getElementById('speciesChart'), {
+            type: 'bar',
+            data: {
+                labels: topSpecies.map(x => x[0]),
+                datasets: [{
+                    label: 'Count',
+                    data: topSpecies.map(x => x[1]),
+                    backgroundColor: '#9d4edd',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { 
+                    x: { grid: { color: 'rgba(255,255,255,0.05)' } },
+                    y: { grid: { display: false }, ticks: { color: '#ccc' } }
+                }
+            }
+        });
+    }
+
+    // --- VIEW SWITCHING LOGIC ---
+    window.switchView = function(view) {
+        // Toggle Active Classes
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.getElementById('view-' + view).classList.add('active');
+        
+        document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById('btn-' + view).classList.add('active');
+
+        // Fix Map Grey Tiles
+        if (view === 'map') {
+            setTimeout(() => map.invalidateSize(), 100); // Critical for Leaflet visibility
+        }
+    };
+
+    window.switchLayer = function(type) {
+        if (type === 'clusters') {
+            if (heatLayer) map.removeLayer(heatLayer);
+            map.addLayer(markersLayer);
+        } else {
+            map.removeLayer(markersLayer);
+            if (heatLayer) map.addLayer(heatLayer);
+        }
+    };
+
+    // --- SAMPLE DATA GENERATOR ---
+    function generateSampleData() {
+        const samples = [];
+        const speciesList = ['Mallard', 'Canada Goose', 'Bald Eagle', 'Black Vulture', 'Red-tailed Hawk', 'Snow Goose', 'Gadwall'];
+        const stateKeys = Object.keys(LOCATIONS);
+        
+        for(let i=0; i<450; i++) {
+            const date = new Date(2023, 0, 1);
+            date.setDate(date.getDate() + Math.floor(Math.random() * 700));
+            
+            samples.push({
+                'State': stateKeys[Math.floor(Math.random() * stateKeys.length)],
+                'Common Name': speciesList[Math.floor(Math.random() * speciesList.length)],
+                'Date Detected': date.toISOString().split('T')[0],
+                'County': 'Sample County'
+            });
+        }
+        processData(samples);
+    }
+
+    // Initialize
+    generateSampleData();
+
+</script>
+</body>
+</html>
