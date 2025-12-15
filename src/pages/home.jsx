@@ -1,7 +1,27 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './home.css';
 
 export default function Home() {
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(() => {
+    const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
+    
+    if (!hasSeenWelcome) {
+      setTimeout(() => {
+        setShowWelcome(true);
+      }, 300);
+    }
+  }, []);
+
+    const closeWelcome = () => {
+    setShowWelcome(false);
+    localStorage.setItem('hasSeenWelcome', 'true');
+  };
+
+
+
+
   const birdArt = 
   `⣰⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣴⡾
 ⠀⠀⣿⡍⠛⠲⣶⣄⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣠⡴⠞⠉⣠⡞⠀⠀
@@ -16,6 +36,21 @@ export default function Home() {
 
   return (
     <>
+      {showWelcome && (
+        <div className="welcome-overlay" onClick={closeWelcome}>
+          <div className="welcome-popup" onClick={(e) => e.stopPropagation()}>
+            <h2>Welcome!</h2>
+            <p>
+              Welcome to your comprehensive bird flu website. 
+              Please click the <strong>"Start Exploring"</strong> button to dive in.
+            </p>
+            <button onClick={closeWelcome}>Got it!</button>
+          </div>
+        </div>
+      )}
+
+
+
       {/* ASCII Birds */}
       <div id="bird1" className="bird">{birdArt}</div>
       <div id="bird2" className="bird">{birdArt}</div>
