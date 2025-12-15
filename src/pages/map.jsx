@@ -3,9 +3,11 @@ import './map.css';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
-import { initMap, switchView, switchLayer, fetchDataFromAPI, cleanupMap, updateWeatherChart } from './mapLogic.js';
-
+import { initMap, switchView, switchLayer, fetchDataFromAPI, cleanupMap, updateWeatherChart, setPopupCallback } from './mapLogic.js';
 function Map() {
+  const [showAnalyticsHint, setShowAnalyticsHint] = useState(false);
+  const [clickedState, setClickedState] = useState('');
+
   const [showMapInfo, setShowMapInfo] = useState(false);
   const mapContainerRef = useRef(null);
   const [totalDetections, setTotalDetections] = useState(0);
@@ -16,6 +18,19 @@ function Map() {
   const [selectedState, setSelectedState] = useState('Alabama');
 
   useEffect(() => {
+
+    // Set up the callback for when markers are clicked
+setPopupCallback((state) => {
+    const hasSeenAnalyticsHint = localStorage.getItem('hasSeenAnalyticsHint');
+    if (!hasSeenAnalyticsHint) {
+        // Close the map info popup if it's still showing
+        setShowMapInfo(false);
+        // Show the analytics hint
+        setClickedState(state);
+        setShowAnalyticsHint(true);
+    }
+});
+
 // Check if user has seen the popup
 const hasSeenMapInfo = localStorage.getItem('hasSeenMapInfo');
 if (!hasSeenMapInfo) {
@@ -31,13 +46,24 @@ if (!hasSeenMapInfo) {
     };
   }, []);
 
-  useEffect(() => {
-    updateWeatherChart(selectedState); // Update chart when state changes
-  }, [selectedState]);
+useEffect(() => {
+    updateWeatherChart(selectedState);
+}, [selectedState]);
+
+useEffect(() => {
+    // When user clicks a marker, update the selected state
+    if (clickedState) {
+        setSelectedState(clickedState);
+    }
+}, [clickedState]);
 
   const closeMapInfo = () => {
   setShowMapInfo(false);
   localStorage.setItem('hasSeenMapInfo', 'true');
+};
+const closeAnalyticsHint = () => {
+    setShowAnalyticsHint(false);
+    localStorage.setItem('hasSeenAnalyticsHint', 'true');
 };
   return (
     <>
@@ -48,11 +74,24 @@ if (!hasSeenMapInfo) {
     <i class="fa-solid fa-location-dot"></i>
     <p>
       This map shows <strong>total bird flu cases by state</strong>. 
-      Zoom in to explore individual data points.
+      Zoom and click on an individual data point to view details.
     </p>
     <button onClick={closeMapInfo}>✕</button>
   </div>
 )}
+
+{showAnalyticsHint && (
+    <div className="analytics-hint-popup">
+        <button className="hint-close" onClick={closeAnalyticsHint}>✕</button>
+        <p>
+            💡 Want to see weather data for <strong>{clickedState}</strong>? 
+            Click the <strong>ANALYTICS</strong> button at the top!
+        </p>
+    </div>
+)}
+
+
+
       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 

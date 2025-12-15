@@ -41,6 +41,13 @@ let heatLayer = null;
 let map = null;
 let markersLayer = null;
 
+// Callback function for popup events (will be set by Map component)
+let onMarkerPopupOpen = null;
+
+export function setPopupCallback(callback) {
+    onMarkerPopupOpen = callback;
+}
+
 export function initMap(mapRef) {
     Chart.defaults.color = '#8b949e';
     Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
@@ -322,6 +329,13 @@ function processData(data) {
                     <div class="popup-row"><span>Date:</span> <b>${date || 'N/A'}</b></div>
                 </div>
             `);
+            // Detect when popup opens and trigger callback
+            marker.on('popupopen', function() {
+             console.log(`User viewing: ${spec} in ${state}`);
+             if (onMarkerPopupOpen) {
+                  onMarkerPopupOpen(state);
+             }
+            });
             
             if (map && markersLayer) markersLayer.addLayer(marker);
             heatPoints.push([lat, lng, 0.5]);
