@@ -6,6 +6,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { initMap, switchView, switchLayer, fetchDataFromAPI, cleanupMap, updateWeatherChart } from './mapLogic.js';
 
 function Map() {
+  const [showMapInfo, setShowMapInfo] = useState(false);
   const mapContainerRef = useRef(null);
   const [totalDetections, setTotalDetections] = useState(0);
   const [uniqueSpecies, setUniqueSpecies] = useState(0);
@@ -15,6 +16,12 @@ function Map() {
   const [selectedState, setSelectedState] = useState('Alabama');
 
   useEffect(() => {
+// Check if user has seen the popup
+const hasSeenMapInfo = localStorage.getItem('hasSeenMapInfo');
+if (!hasSeenMapInfo) {
+  setTimeout(() => setShowMapInfo(true), 1000);
+}
+
     initMap(mapContainerRef);
     fetchDataFromAPI(setTotalDetections, setUniqueSpecies, setStatesRegions, setRecordCount, setStatusMode); // Pass setters
     updateWeatherChart(selectedState); // Initialize weather chart with default state
@@ -28,8 +35,24 @@ function Map() {
     updateWeatherChart(selectedState); // Update chart when state changes
   }, [selectedState]);
 
+  const closeMapInfo = () => {
+  setShowMapInfo(false);
+  localStorage.setItem('hasSeenMapInfo', 'true');
+};
   return (
     <>
+
+      {showMapInfo && (
+  <div className="map-info-popup">
+
+    <i class="fa-solid fa-location-dot"></i>
+    <p>
+      This map shows <strong>total bird flu cases by state</strong>. 
+      Zoom in to explore individual data points.
+    </p>
+    <button onClick={closeMapInfo}>✕</button>
+  </div>
+)}
       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 

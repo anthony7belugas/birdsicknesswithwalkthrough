@@ -172,3 +172,45 @@ header {
 
 @media (max-width: 1200px) { .col-4, .col-6 { grid-column: span 12; } .sidebar { width: 260px; } }
 @media (max-width: 768px) { .sidebar { display: none; } .main-container { flex-direction: column; } }
+
+/* Map Info Popup */
+.map-info-popup {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(11, 12, 16, 0.95);
+    border: 1px solid #FF9500;
+    border-radius: 8px;
+    padding: 16px 24px;
+    max-width: 500px;
+    z-index: 2000;
+    box-shadow: 0 4px 20px rgba(255, 149, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    color: #e6edf3;
+    font-size: 0.9rem;
+}
+
+.map-info-popup i {
+    color: #FF9500;
+    font-size: 1.5rem;
+}
+
+.map-info-popup strong {
+    color: #FFB038;
+}
+
+.map-info-popup button {
+    background: none;
+    border: none;
+    color: #8b949e;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 0;
+}
+
+.map-info-popup button:hover {
+    color: #FF9500;
+}
