@@ -16,7 +16,7 @@ function Map() {
   const [recordCount, setRecordCount] = useState('Loading...');
   const [statusMode, setStatusMode] = useState('Sample Data');
   const [selectedState, setSelectedState] = useState('Alabama');
-
+const [showDucksHint, setShowDucksHint] = useState(false);
   useEffect(() => {
 
     // Set up the callback for when markers are clicked
@@ -56,6 +56,18 @@ useEffect(() => {
         setSelectedState(clickedState);
     }
 }, [clickedState]);
+useEffect(() => {
+    const handleShowDucksHint = () => {
+        setShowAnalyticsHint(false);
+        setShowDucksHint(true);
+    };
+    
+    window.addEventListener('showDucksHint', handleShowDucksHint);
+    
+    return () => {
+        window.removeEventListener('showDucksHint', handleShowDucksHint);
+    };
+}, []);
 
   const closeMapInfo = () => {
   setShowMapInfo(false);
@@ -64,6 +76,11 @@ useEffect(() => {
 const closeAnalyticsHint = () => {
     setShowAnalyticsHint(false);
     localStorage.setItem('hasSeenAnalyticsHint', 'true');
+};
+
+const closeDucksHint = () => {
+    setShowDucksHint(false);
+    localStorage.setItem('hasSeenDucksHint', 'true');
 };
   return (
     <>
@@ -86,6 +103,18 @@ const closeAnalyticsHint = () => {
         <p>
             💡 Want to see weather data for <strong>{clickedState}</strong>? 
             Click the <strong>ANALYTICS</strong> button at the top!
+        </p>
+    </div>
+)}
+
+{showDucksHint && (
+    <div className="ducks-hint-popup">
+        <button className="hint-close" onClick={closeDucksHint}>✕</button>
+        <p>
+            📊 <strong>Note:</strong> There is a spike in bird flu in the colder winter months 
+            and cold temps could be correlated with bird flu. Please click on the 
+            <strong> "DUCKS"</strong> tab at the top to view which species are the most 
+            impacted by bird flu.
         </p>
     </div>
 )}

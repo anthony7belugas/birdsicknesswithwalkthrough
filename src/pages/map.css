@@ -257,3 +257,29 @@ header {
 .hint-close:hover {
     color: #FF9500;
 }
+
+/* Ducks Hint Popup */
+.ducks-hint-popup {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(11, 12, 16, 0.95);
+    border: 1px solid #FF9500;
+    border-radius: 8px;
+    padding: 16px 50px 16px 24px;
+    max-width: 550px;
+    z-index: 2000;
+    box-shadow: 0 4px 20px rgba(255, 149, 0, 0.2);
+    color: #e6edf3;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.ducks-hint-popup p {
+    margin: 0;
+}
+
+.ducks-hint-popup strong {
+    color: #FFB038;
+}

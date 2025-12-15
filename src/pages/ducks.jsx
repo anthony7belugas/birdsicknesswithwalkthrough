@@ -1,16 +1,40 @@
-import React, { useState } from 'react';
-
+import React, { useState, useEffect } from 'react';
 export default function Ducks() {
     const [heroImage, setHeroImage] = useState("https://ljwright.webdev.iyaserver.com/acad274/Group%20Project/birds");
+    const [showResourcesHint, setShowResourcesHint] = useState(false);
 
+useEffect(() => {
+    // Check if user has seen this hint before
+    const hasSeenResourcesHint = localStorage.getItem('hasSeenResourcesHint');
+    if (!hasSeenResourcesHint) {
+        setTimeout(() => {
+            setShowResourcesHint(true);
+        }, 1000);
+    }
+}, []);
+
+const closeResourcesHint = () => {
+    setShowResourcesHint(false);
+    localStorage.setItem('hasSeenResourcesHint', 'true');
+};
     const switchHeroImage = (mode) => {
         const visualImage = "https://ljwright.webdev.iyaserver.com/acad274/Group%20Project/birds";
         const chartImage = "https://ljwright.webdev.iyaserver.com/acad274/Group%20Project/chart.jpg";
         setHeroImage(mode === "visual" ? visualImage : chartImage);
     };
 
-    return (
-        <>
+return (
+    <>
+        {showResourcesHint && (
+            <div className="resources-hint-popup">
+                <button className="resources-hint-close" onClick={closeResourcesHint}>✕</button>
+                <p>
+                    🦆 <strong>Note:</strong> Mallard ducks have the highest prevalence of being 
+                    infected by avian flu. For more information, click on <strong>RESOURCES</strong> tab at the top.
+                </p>
+            </div>
+        )}
+        
             <style>
                 {`
                     :root{
@@ -101,7 +125,49 @@ export default function Ducks() {
                     footer{ color:var(--muted-text); text-align:center; padding:12px 0; font-size:13px; }
 
                     @media (max-width:1100px){ .wrap{ padding:0 12px; gap:18px; } .sidebar{ width:280px; } .map-hero{ height:420px; } }
-                    @media (max-width:860px){ .wrap{ flex-direction:column; align-items:stretch; max-width:940px; margin:18px auto; } .sidebar{ width:100%; order:2; min-height:initial } .main{ order:1 } .map-hero{ height:320px } }
+                  @media (max-width:860px){ .wrap{ flex-direction:column; align-items:stretch; max-width:940px; margin:18px auto; } .sidebar{ width:100%; order:2; min-height:initial } .main{ order:1 } .map-hero{ height:320px } }
+
+                    /* Resources Hint Popup */
+                    .resources-hint-popup {
+                        position: fixed;
+                        bottom: 30px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        background: rgba(11, 12, 16, 0.95);
+                        border: 1px solid #FF9500;
+                        border-radius: 8px;
+                        padding: 16px 50px 16px 24px;
+                        max-width: 550px;
+                        z-index: 9999;
+                        box-shadow: 0 4px 20px rgba(255, 149, 0, 0.2);
+                        color: #e6edf3;
+                        font-size: 0.9rem;
+                        line-height: 1.6;
+                    }
+
+                    .resources-hint-popup p {
+                        margin: 0;
+                    }
+
+                    .resources-hint-popup strong {
+                        color: #FFB038;
+                    }
+
+                    .resources-hint-close {
+                        position: absolute;
+                        top: 8px;
+                        right: 12px;
+                        background: none;
+                        border: none;
+                        color: #8b949e;
+                        cursor: pointer;
+                        font-size: 1.2rem;
+                        padding: 0;
+                    }
+
+                    .resources-hint-close:hover {
+                        color: #FF9500;
+                    }
                 `}
             </style>
 

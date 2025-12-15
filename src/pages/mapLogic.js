@@ -132,6 +132,16 @@ export function switchView(view) {
     if (view === 'map') {
         setTimeout(() => map?.invalidateSize(), 100);
     }
+    // Show ducks hint when switching to analytics
+    if (view === 'analytics') {
+        const hasSeenDucksHint = localStorage.getItem('hasSeenDucksHint');
+        if (!hasSeenDucksHint) {
+            // Trigger event to show ducks hint
+            setTimeout(() => {
+                window.dispatchEvent(new CustomEvent('showDucksHint'));
+            }, 1000);
+        }
+    }
 };
 
 export function switchLayer(type) {
