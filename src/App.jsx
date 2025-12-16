@@ -48,12 +48,12 @@ function App() {
               </button>
               </Link>
               <Link to="/map">
-              <button className="nav-btn " onClick={() => switchView('map')} id="btn-map">
+              <button className="nav-btn" id="btn-map">
                 <i className="fas fa-globe-americas"></i> MAP
               </button>
               </Link>
-              <Link to="/map">
-              <button className="nav-btn" onClick={() => switchView('analytics')} id="btn-analytics">
+              <Link to="/analytics">
+              <button className="nav-btn" id="btn-analytics">
                 <i className="fas fa-chart-pie"></i> ANALYTICS
               </button>
               </Link>
@@ -70,7 +70,8 @@ function App() {
     
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/map" element={<Map />} />
+      <Route path="/map" element={<Map initialView="map" />} />
+      <Route path="/analytics" element={<Map initialView="analytics" />} />
       <Route path="/ducks" element={<Ducks />} />
       <Route path="/tempBirds" element={<TempBirds />} />
       <Route path="/dataTest" element={<DataTest />} />

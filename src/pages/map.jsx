@@ -4,7 +4,8 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { initMap, switchView, switchLayer, fetchDataFromAPI, cleanupMap, updateWeatherChart, setPopupCallback, fetchAndProcessBirdSicknessData, ensureLayersVisible } from './mapLogic.js';
-function Map() {
+
+function Map({ initialView = 'map' }) {
   const [showAnalyticsHint, setShowAnalyticsHint] = useState(false);
   const [clickedState, setClickedState] = useState('');
 
@@ -18,6 +19,7 @@ function Map() {
   const [selectedState, setSelectedState] = useState('Alabama');
   const [showDucksHint, setShowDucksHint] = useState(false);
   const [averageCasesByMonth, setAverageCasesByMonth] = useState({});
+  const [currentView, setCurrentView] = useState(initialView);
 
   useEffect(() => {
     // Set up the callback for when markers are clicked
@@ -34,7 +36,7 @@ function Map() {
 
     // Check if user has seen the popup
     const hasSeenMapInfo = localStorage.getItem('hasSeenMapInfo');
-    if (!hasSeenMapInfo) {
+    if (!hasSeenMapInfo && initialView === 'map') {
       setTimeout(() => setShowMapInfo(true), 1000);
     }
 
@@ -42,6 +44,9 @@ function Map() {
     fetchDataFromAPI(setTotalDetections, setUniqueSpecies, setStatesRegions, setRecordCount, setStatusMode); // Pass setters
     updateWeatherChart(selectedState); // Initialize weather chart with default state
     fetchAndProcessBirdSicknessData(setAverageCasesByMonth);
+
+    // Set initial view based on prop
+    setCurrentView(initialView);
 
     return () => {
       cleanupMap(); // Cleanup map on component unmount
@@ -160,7 +165,7 @@ function Map() {
         </div>
 
         <div className="content-area">
-          <div id="view-map" className="view-section active">
+          <div id="view-map" className={`view-section ${currentView === 'map' ? 'active' : ''}`}>
             <div id="map-wrapper">
               <div id="mainMap" ref={mapContainerRef}></div>
               <div className="map-overlay-controls glass">
@@ -177,7 +182,7 @@ function Map() {
             </div>
           </div>
 
-          <div id="view-analytics" className="view-section">
+          <div id="view-analytics" className={`view-section ${currentView === 'analytics' ? 'active' : ''}`}>
             <div className="analytics-grid">
               <div className="chart-card col-12">
                 <div className="chart-header">
