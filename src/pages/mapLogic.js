@@ -187,22 +187,10 @@ function getField(row, possibilities) {
 
 function updateCharts(data) {
         // Prepare Data
-        const dates = {};
         const stateCounts = {};
         const specCounts = {};
 
         data.forEach(row => {
-            const d = getField(row, ['date', 'collection']);
-            if (d) {
-                try {
-                    const dateObj = new Date(d);
-                    if(!isNaN(dateObj)) {
-                        const k = dateObj.toISOString().slice(0, 7); // YYYY-MM
-                        dates[k] = (dates[k] || 0) + 1;
-                    }
-                } catch(e) {}
-            }
-
             const s = getField(row, ['state']);
             if(s) stateCounts[s] = (stateCounts[s] || 0) + 1;
 
@@ -211,87 +199,64 @@ function updateCharts(data) {
         });
 
         // Destroy old charts
-        if (charts.temporal) charts.temporal.destroy();
         if (charts.state) charts.state.destroy();
         if (charts.species) charts.species.destroy();
-
-        // 1. Temporal Line Chart
-        const sortedDates = Object.keys(dates).sort();
-        charts.temporal = new Chart(document.getElementById('temporalChart'), {
-            type: 'line',
-            data: {
-                labels: sortedDates,
-                datasets: [{
-                    label: 'Detections',
-                    data: sortedDates.map(k => dates[k]),
-                    borderColor: '#66fcf1',
-                    backgroundColor: 'rgba(102, 252, 241, 0.1)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { 
-                    x: { grid: { display: false }, ticks: { color: '#888', font: {size: 10} } },
-                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#888' } }
-                }
-            }
-        });
         
-        // 2. State Bar Chart
-        const topStates = Object.entries(stateCounts).sort((a,b) => b[1] - a[1]).slice(0, 10);
-        charts.state = new Chart(document.getElementById('stateChart'), {
-            type: 'bar',
-            data: {
-                labels: topStates.map(x => x[0]),
-                datasets: [{
-                    label: 'Cases',
-                    data: topStates.map(x => x[1]),
-                    backgroundColor: '#ff4d6d',
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { 
-                    x: { grid: { color: 'rgba(255,255,255,0.05)' } },
-                    y: { grid: { display: false }, ticks: { color: '#ccc' } }
+        // 1. State Bar Chart (Geographic Hotspots)
+        const stateCanvas = document.getElementById('stateChart');
+        if (stateCanvas) {
+            const topStates = Object.entries(stateCounts).sort((a,b) => b[1] - a[1]).slice(0, 10);
+            charts.state = new Chart(stateCanvas, {
+                type: 'bar',
+                data: {
+                    labels: topStates.map(x => x[0]),
+                    datasets: [{
+                        label: 'Cases',
+                        data: topStates.map(x => x[1]),
+                        backgroundColor: '#ff4d6d',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { 
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: { grid: { display: false }, ticks: { color: '#ccc' } }
+                    }
                 }
-            }
-        });
+            });
+        }
         
-        // 3. Species Bar Chart
-        const topSpecies = Object.entries(specCounts).sort((a,b) => b[1] - a[1]).slice(0, 10);
-        charts.species = new Chart(document.getElementById('speciesChart'), {
-            type: 'bar',
-            data: {
-                labels: topSpecies.map(x => x[0]),
-                datasets: [{
-                    label: 'Count',
-                    data: topSpecies.map(x => x[1]),
-                    backgroundColor: '#9d4edd',
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { 
-                    x: { grid: { color: 'rgba(255,255,255,0.05)' } },
-                    y: { grid: { display: false }, ticks: { color: '#ccc' } }
+        // 2. Species Bar Chart (Species Susceptibility)
+        const speciesCanvas = document.getElementById('speciesChart');
+        if (speciesCanvas) {
+            const topSpecies = Object.entries(specCounts).sort((a,b) => b[1] - a[1]).slice(0, 10);
+            charts.species = new Chart(speciesCanvas, {
+                type: 'bar',
+                data: {
+                    labels: topSpecies.map(x => x[0]),
+                    datasets: [{
+                        label: 'Count',
+                        data: topSpecies.map(x => x[1]),
+                        backgroundColor: '#9d4edd',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { 
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: { grid: { display: false }, ticks: { color: '#ccc' } }
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
 
@@ -299,38 +264,39 @@ function updateCharts(data) {
 
 function processData(data) {
     globalData = data;
-    
-    //markersLayer.clearLayers();
-    if (heatLayer) map.removeLayer(heatLayer);
-    
+
+    if (heatLayer) {
+        map.removeLayer(heatLayer);
+    }
+
     const heatPoints = [];
     let validPoints = 0;
-    
+
     const states = new Set();
     const species = new Set();
-    
+
     data.forEach(row => {
         const state = getField(row, ['state'])?.trim();
         const spec = getField(row, ['common name', 'species'])?.trim();
         const date = getField(row, ['date', 'collection'])?.trim();
         const county = getField(row, ['county'])?.trim();
-        
+
         if (state && LOCATIONS[state]) {
             validPoints++;
             states.add(state);
-            if(spec) species.add(spec);
+            if (spec) species.add(spec);
 
             const center = LOCATIONS[state];
             const lat = center[0] + (Math.random() - 0.5) * 2;
             const lng = center[1] + (Math.random() - 0.5) * 3;
-            
+
             const marker = L.marker([lat, lng], {
                 icon: L.divIcon({
                     className: 'pin',
                     html: '<div style="width:8px; height:8px; background:#ff4d6d; border-radius:50%; border:1px solid white; box-shadow:0 0 4px #ff4d6d"></div>'
                 })
             });
-            
+
             marker.bindPopup(`
                 <div class="bird-popup">
                     <h3>${spec || 'Unknown Species'}</h3>
@@ -339,14 +305,13 @@ function processData(data) {
                     <div class="popup-row"><span>Date:</span> <b>${date || 'N/A'}</b></div>
                 </div>
             `);
-            // Detect when popup opens and trigger callback
-            marker.on('popupopen', function() {
-             console.log(`User viewing: ${spec} in ${state}`);
-             if (onMarkerPopupOpen) {
-                  onMarkerPopupOpen(state);
-             }
+
+            marker.on('popupopen', function () {
+                if (onMarkerPopupOpen) {
+                    onMarkerPopupOpen(state);
+                }
             });
-            
+
             if (map && markersLayer) markersLayer.addLayer(marker);
             heatPoints.push([lat, lng, 0.5]);
         }
@@ -354,14 +319,15 @@ function processData(data) {
 
     heatLayer = L.heatLayer(heatPoints, { radius: 30, blur: 20, maxZoom: 8 });
 
-    if (map){
-             document.getElementById('kpi-total').innerText = validPoints.toLocaleString();
+    if (map) {
+        map.addLayer(heatLayer);
+        ensureLayersVisible(); // Ensure layers are visible after processing data
+        document.getElementById('kpi-total').innerText = validPoints.toLocaleString();
         document.getElementById('kpi-species').innerText = species.size.toLocaleString();
-        document.getElementById('kpi-states').innerText = states.size;
-        document.getElementById('record-count').innerText = `${validPoints} records mapped`;
+        document.getElementById('kpi-states').innerText = states.size.toLocaleString();
     }
-
-
+    
+    // Update the state and species bar charts
     updateCharts(data);
 }
 
@@ -378,7 +344,29 @@ async function fetchWeatherData(state) {
     }
 }
 
-export async function updateWeatherChart(state) {
+async function fetchmonthlybirddata(state) {
+    try {
+        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+        const apiUrl = `${protocol}//mlrocha.webdev.iyaserver.com/acad274/php_files/monthly_bird_data_API.php?state=${encodeURIComponent(state)}`;
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        return data.filter(entry => entry.state === state);
+    } catch (error) {
+        console.error('Error fetching monthly bird data:', error);
+        return [];
+    }
+}
+
+
+// Store bird sickness data globally for use in updateWeatherChart
+let cachedBirdSicknessData = {};
+
+export async function updateWeatherChart(state, birdSicknessData = null) {
+    // Update cached data if provided
+    if (birdSicknessData) {
+        cachedBirdSicknessData = birdSicknessData;
+    }
+    
     const weatherData = await fetchWeatherData(state);
 
     const monthlyData = Array(12).fill(0);
@@ -389,6 +377,50 @@ export async function updateWeatherChart(state) {
 
     if (charts.weather) charts.weather.destroy();
 
+    // Prepare bird sickness dataset if data exists for this state
+    const datasets = [{
+        label: `Average Monthly Temperature in ${state}`,
+        data: monthlyData,
+        borderColor: '#ff7f50',
+        backgroundColor: 'rgba(255, 127, 80, 0.2)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 3,
+        yAxisID: 'y'
+    }];
+    
+    // Add bird sickness data if available
+    if (cachedBirdSicknessData[state]) {
+        const birdData = cachedBirdSicknessData[state];
+        const monthlyCases = Array(12).fill(0);
+        const monthCounts = Array(12).fill(0);
+        
+        birdData.forEach(entry => {
+            const monthIndex = parseInt(entry.month.split('-')[1], 10) - 1;
+            if (monthIndex >= 0 && monthIndex < 12) {
+                monthlyCases[monthIndex] += entry.average;
+                monthCounts[monthIndex] += 1;
+            }
+        });
+        
+        const averageMonthlyCases = monthlyCases.map((total, i) => 
+            monthCounts[i] > 0 ? Math.round(total / monthCounts[i]) : 0
+        );
+        
+        datasets.push({
+            label: 'Avg Monthly Bird Flu Cases',
+            data: averageMonthlyCases,
+            borderColor: '#ff4d6d',
+            backgroundColor: 'rgba(255, 77, 109, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 3,
+            yAxisID: 'y1'
+        });
+    }
+
     charts.weather = new Chart(document.getElementById('weatherChart'), {
         type: 'line',
         data: {
@@ -396,16 +428,7 @@ export async function updateWeatherChart(state) {
                 'January', 'February', 'March', 'April', 'May', 'June',
                 'July', 'August', 'September', 'October', 'November', 'December'
             ],
-            datasets: [{
-                label: `Average Monthly Temperature in ${state}`,
-                data: monthlyData,
-                borderColor: '#ff7f50',
-                backgroundColor: 'rgba(255, 127, 80, 0.2)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 3
-            }]
+            datasets: datasets
         },
         options: {
             responsive: true,
@@ -413,8 +436,150 @@ export async function updateWeatherChart(state) {
             plugins: { legend: { display: true } },
             scales: {
                 x: { grid: { display: false }, ticks: { color: '#888', font: { size: 10 } } },
-                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#888' } }
+                y: { 
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    grid: { color: 'rgba(255,255,255,0.05)' }, 
+                    ticks: { color: '#ff7f50' },
+                    title: {
+                        display: true,
+                        text: 'Temperature (°F)',
+                        color: '#ff7f50'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: { drawOnChartArea: false },
+                    ticks: { color: '#ff4d6d' },
+                    title: {
+                        display: true,
+                        text: 'Bird Flu Cases',
+                        color: '#ff4d6d'
+                    }
+                }
             }
         }
     });
+}
+
+export async function fetchAndProcessBirdSicknessData(setAverageCasesByMonth) {
+    try {
+        const response = await fetch('https://mlrocha.webdev.iyaserver.com/acad274/php_files/tester.php');
+        const data = await response.json();
+
+        // Process data to calculate average monthly cases by state
+        const stateMonthData = {};
+
+        data.forEach(record => {
+            const state = record.State;
+            const collectionDate = record.Collection_Date;
+
+            if (state && collectionDate) {
+                const date = new Date(collectionDate);
+                if (!isNaN(date)) {
+                    const monthKey = `${state}-${date.getFullYear()}-${date.getMonth() + 1}`;
+                    if (!stateMonthData[monthKey]) {
+                        stateMonthData[monthKey] = { count: 0, total: 0 };
+                    }
+                    stateMonthData[monthKey].count += 1;
+                }
+            }
+        });
+
+        // Calculate averages
+        const averageCasesByMonth = {};
+        Object.keys(stateMonthData).forEach(key => {
+            const [state, year, month] = key.split('-');
+            if (!averageCasesByMonth[state]) {
+                averageCasesByMonth[state] = [];
+            }
+            averageCasesByMonth[state].push({
+                month: `${year}-${month.padStart(2, '0')}`,
+                average: stateMonthData[key].count
+            });
+        });
+
+        setAverageCasesByMonth(averageCasesByMonth);
+    } catch (error) {
+        console.error('Error fetching or processing bird sickness data:', error);
+    }
+}
+
+export function updateWeatherChartWithCases(selectedState, averageCasesByMonth) {
+    const weatherChart = Chart.getChart('weatherChart');
+    if (!weatherChart || !averageCasesByMonth[selectedState]) return;
+
+    const birdSicknessData = averageCasesByMonth[selectedState];
+    
+    // Aggregate cases by month (1-12) to match the weather chart format
+    const monthlyCases = Array(12).fill(0);
+    const monthCounts = Array(12).fill(0);
+    
+    birdSicknessData.forEach(entry => {
+        const monthIndex = parseInt(entry.month.split('-')[1], 10) - 1;
+        if (monthIndex >= 0 && monthIndex < 12) {
+            monthlyCases[monthIndex] += entry.average;
+            monthCounts[monthIndex] += 1;
+        }
+    });
+    
+    // Calculate averages per month
+    const averageMonthlyCases = monthlyCases.map((total, i) => 
+        monthCounts[i] > 0 ? Math.round(total / monthCounts[i]) : 0
+    );
+
+    // Check if bird sickness dataset already exists
+    const existingDatasetIndex = weatherChart.data.datasets.findIndex(
+        ds => ds.label === 'Avg Monthly Bird Flu Cases'
+    );
+
+    if (existingDatasetIndex !== -1) {
+        // Update existing dataset
+        weatherChart.data.datasets[existingDatasetIndex].data = averageMonthlyCases;
+    } else {
+        // Add new dataset
+        weatherChart.data.datasets.push({
+            label: 'Avg Monthly Bird Flu Cases',
+            data: averageMonthlyCases,
+            borderColor: '#ff4d6d',
+            backgroundColor: 'rgba(255, 77, 109, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 3,
+            yAxisID: 'y1'
+        });
+        
+        // Add second Y axis for cases if not already present
+        if (!weatherChart.options.scales.y1) {
+            weatherChart.options.scales.y1 = {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                grid: { drawOnChartArea: false },
+                ticks: { color: '#ff4d6d' },
+                title: {
+                    display: true,
+                    text: 'Bird Flu Cases',
+                    color: '#ff4d6d'
+                }
+            };
+        }
+    }
+
+    weatherChart.update();
+}
+
+export function ensureLayersVisible() {
+    if (map) {
+        if (markersLayer && !map.hasLayer(markersLayer)) {
+            map.addLayer(markersLayer);
+        }
+        if (heatLayer && !map.hasLayer(heatLayer)) {
+            map.addLayer(heatLayer);
+        }
+    }
 }

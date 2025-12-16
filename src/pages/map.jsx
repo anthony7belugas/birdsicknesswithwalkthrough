@@ -3,7 +3,7 @@ import './map.css';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
-import { initMap, switchView, switchLayer, fetchDataFromAPI, cleanupMap, updateWeatherChart, setPopupCallback } from './mapLogic.js';
+import { initMap, switchView, switchLayer, fetchDataFromAPI, cleanupMap, updateWeatherChart, setPopupCallback, fetchAndProcessBirdSicknessData, ensureLayersVisible } from './mapLogic.js';
 function Map() {
   const [showAnalyticsHint, setShowAnalyticsHint] = useState(false);
   const [clickedState, setClickedState] = useState('');
@@ -16,79 +16,85 @@ function Map() {
   const [recordCount, setRecordCount] = useState('Loading...');
   const [statusMode, setStatusMode] = useState('Sample Data');
   const [selectedState, setSelectedState] = useState('Alabama');
-const [showDucksHint, setShowDucksHint] = useState(false);
+  const [showDucksHint, setShowDucksHint] = useState(false);
+  const [averageCasesByMonth, setAverageCasesByMonth] = useState({});
+
   useEffect(() => {
-
     // Set up the callback for when markers are clicked
-setPopupCallback((state) => {
-    const hasSeenAnalyticsHint = localStorage.getItem('hasSeenAnalyticsHint');
-    if (!hasSeenAnalyticsHint) {
-        // Close the map info popup if it's still showing
-        setShowMapInfo(false);
-        // Show the analytics hint
-        setClickedState(state);
-        setShowAnalyticsHint(true);
-    }
-});
+    setPopupCallback((state) => {
+      const hasSeenAnalyticsHint = localStorage.getItem('hasSeenAnalyticsHint');
+      if (!hasSeenAnalyticsHint) {
+          // Close the map info popup if it's still showing
+          setShowMapInfo(false);
+          // Show the analytics hint
+          setClickedState(state);
+          setShowAnalyticsHint(true);
+      }
+    });
 
-// Check if user has seen the popup
-const hasSeenMapInfo = localStorage.getItem('hasSeenMapInfo');
-if (!hasSeenMapInfo) {
-  setTimeout(() => setShowMapInfo(true), 1000);
-}
+    // Check if user has seen the popup
+    const hasSeenMapInfo = localStorage.getItem('hasSeenMapInfo');
+    if (!hasSeenMapInfo) {
+      setTimeout(() => setShowMapInfo(true), 1000);
+    }
 
     initMap(mapContainerRef);
     fetchDataFromAPI(setTotalDetections, setUniqueSpecies, setStatesRegions, setRecordCount, setStatusMode); // Pass setters
     updateWeatherChart(selectedState); // Initialize weather chart with default state
+    fetchAndProcessBirdSicknessData(setAverageCasesByMonth);
 
     return () => {
       cleanupMap(); // Cleanup map on component unmount
     };
   }, []);
 
-useEffect(() => {
-    updateWeatherChart(selectedState);
-}, [selectedState]);
+  useEffect(() => {
+      // Pass bird sickness data when updating weather chart
+      updateWeatherChart(selectedState, averageCasesByMonth);
+  }, [selectedState, averageCasesByMonth]);
 
-useEffect(() => {
-    // When user clicks a marker, update the selected state
-    if (clickedState) {
-        setSelectedState(clickedState);
-    }
-}, [clickedState]);
-useEffect(() => {
-    const handleShowDucksHint = () => {
-        setShowAnalyticsHint(false);
-        setShowDucksHint(true);
-    };
-    
-    window.addEventListener('showDucksHint', handleShowDucksHint);
-    
-    return () => {
-        window.removeEventListener('showDucksHint', handleShowDucksHint);
-    };
-}, []);
+  useEffect(() => {
+      // When user clicks a marker, update the selected state
+      if (clickedState) {
+          setSelectedState(clickedState);
+      }
+  }, [clickedState]);
+  useEffect(() => {
+      const handleShowDucksHint = () => {
+          setShowAnalyticsHint(false);
+          setShowDucksHint(true);
+      };
+      
+      window.addEventListener('showDucksHint', handleShowDucksHint);
+      
+      return () => {
+          window.removeEventListener('showDucksHint', handleShowDucksHint);
+      };
+  }, []);
+  useEffect(() => {
+    ensureLayersVisible(); // Ensure layers remain visible
+  }, []);
 
   const closeMapInfo = () => {
-  setShowMapInfo(false);
-  localStorage.setItem('hasSeenMapInfo', 'true');
-};
-const closeAnalyticsHint = () => {
-    setShowAnalyticsHint(false);
-    localStorage.setItem('hasSeenAnalyticsHint', 'true');
-};
+    setShowMapInfo(false);
+    localStorage.setItem('hasSeenMapInfo', 'true');
+  };
+  const closeAnalyticsHint = () => {
+      setShowAnalyticsHint(false);
+      localStorage.setItem('hasSeenAnalyticsHint', 'true');
+  };
 
-const closeDucksHint = () => {
-    setShowDucksHint(false);
-    localStorage.setItem('hasSeenDucksHint', 'true');
-};
+  const closeDucksHint = () => {
+      setShowDucksHint(false);
+      localStorage.setItem('hasSeenDucksHint', 'true');
+  };
   return (
     <>
 
       {showMapInfo && (
   <div className="map-info-popup">
 
-    <i class="fa-solid fa-location-dot"></i>
+    <i className="fa-solid fa-location-dot"></i>
     <p>
       This map shows <strong>total bird flu cases by state</strong>. 
       Zoom and click on an individual data point to view details.
