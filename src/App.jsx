@@ -41,10 +41,10 @@ function App() {
                 <i className="fas fa-home"></i> HOME
               </button>
               </Link>
-              <Link to="/ducks" id="btn-ducks">
+              <Link to="/birds" id="btn-ducks">
               <button className = "nav-btn" onClick={() => switchView('ducks')} id = "btn-ducks">
                 <i className="fas fa-dove"></i>
-                DUCKS
+                BIRDS
               </button>
               </Link>
               <Link to="/map">
@@ -53,7 +53,10 @@ function App() {
               </button>
               </Link>
               <Link to="/analytics">
-              <button className="nav-btn" id="btn-analytics">
+              <button className="nav-btn" onClick={() => {
+                localStorage.setItem('hasSeenAnalyticsHint', 'true');
+                switchView('analytics');
+              }} id="btn-analytics">
                 <i className="fas fa-chart-pie"></i> ANALYTICS
               </button>
               </Link>
@@ -72,7 +75,7 @@ function App() {
       <Route path="/" element={<Home />} />
       <Route path="/map" element={<Map initialView="map" />} />
       <Route path="/analytics" element={<Map initialView="analytics" />} />
-      <Route path="/ducks" element={<Ducks />} />
+      <Route path="/birds" element={<Ducks />} />
       <Route path="/tempBirds" element={<TempBirds />} />
       <Route path="/dataTest" element={<DataTest />} />
       <Route path="/resources" element={<Resources />} />

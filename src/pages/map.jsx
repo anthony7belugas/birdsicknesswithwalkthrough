@@ -48,6 +48,16 @@ function Map({ initialView = 'map' }) {
     // Set initial view based on prop
     setCurrentView(initialView);
 
+    // If starting on analytics view, check if we should show the ducks hint
+    if (initialView === 'analytics') {
+      const hasSeenDucksHint = localStorage.getItem('hasSeenDucksHint');
+      const hasSeenAnalyticsHint = localStorage.getItem('hasSeenAnalyticsHint');
+      // Show ducks hint if user has been through the analytics hint but not the ducks hint
+      if (!hasSeenDucksHint && hasSeenAnalyticsHint) {
+        setTimeout(() => setShowDucksHint(true), 1000);
+      }
+    }
+
     return () => {
       cleanupMap(); // Cleanup map on component unmount
     };
@@ -124,7 +134,7 @@ function Map({ initialView = 'map' }) {
         <p>
             📊 <strong>Note:</strong> There is a spike in bird flu in the colder winter months 
             and cold temps could be correlated with bird flu. Please click on the 
-            <strong> "DUCKS"</strong> tab at the top to view which species are the most 
+            <strong> "BIRDS"</strong> tab at the top to view which species are the most 
             impacted by bird flu.
         </p>
     </div>
