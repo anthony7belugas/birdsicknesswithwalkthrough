@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import './home.css';
 
 export default function Home() {
@@ -78,7 +79,7 @@ export default function Home() {
              and the hottest average tempetature in a month per state the higher 
              likelihood of bird flu in that state.
           </p>
-          <a className="btn" href="/map">Start Exploring →</a>
+          <Link className="btn" to="/map">Start Exploring →</Link>
         </main>
       </div>
     </>
