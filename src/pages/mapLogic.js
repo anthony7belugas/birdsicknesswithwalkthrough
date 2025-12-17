@@ -154,12 +154,12 @@ export function switchLayer(type) {
     }
 };
 
+
+
 export async function fetchDataFromAPI() {
     try {
         const response = await fetch('https://mlrocha.webdev.iyaserver.com/acad274/php_files/tester.php');
         const data = await response.json();
-       
-      
         processData(data);
     } catch (error) {
         if (map){
@@ -344,18 +344,7 @@ async function fetchWeatherData(state) {
     }
 }
 
-async function fetchmonthlybirddata(state) {
-    try {
-        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-        const apiUrl = `${protocol}//mlrocha.webdev.iyaserver.com/acad274/php_files/monthly_bird_data_API.php?state=${encodeURIComponent(state)}`;
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-        return data.filter(entry => entry.state === state);
-    } catch (error) {
-        console.error('Error fetching monthly bird data:', error);
-        return [];
-    }
-}
+
 
 
 // Store bird sickness data globally for use in updateWeatherChart
@@ -470,7 +459,6 @@ export async function fetchAndProcessBirdSicknessData(setAverageCasesByMonth) {
         const response = await fetch('https://mlrocha.webdev.iyaserver.com/acad274/php_files/tester.php');
         const data = await response.json();
 
-        // Process data to calculate average monthly cases by state
         const stateMonthData = {};
 
         data.forEach(record => {
@@ -488,8 +476,6 @@ export async function fetchAndProcessBirdSicknessData(setAverageCasesByMonth) {
                 }
             }
         });
-
-        // Calculate averages
         const averageCasesByMonth = {};
         Object.keys(stateMonthData).forEach(key => {
             const [state, year, month] = key.split('-');
