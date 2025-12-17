@@ -9,7 +9,7 @@ import TempBirds from './pages/tempBirds.jsx'
 import DataTest from './pages/dataTest.jsx'
 import Resources from './pages/resources.jsx'
 import { initMap, switchView, switchLayer, cleanupMap } from './pages/mapLogic.js';
-import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
+import { HashRouter as Router, Route, Routes, Link } from 'react-router-dom';
 
 
 function App() {
